@@ -1,7 +1,9 @@
 package content
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+
+	hzapp "github.com/cloudwego/hertz/pkg/app"
 
 	"github.com/go-sonic/sonic/handler/content/model"
 	"github.com/go-sonic/sonic/template"
@@ -18,14 +20,14 @@ func NewIndexHandler(postModel *model.PostModel) *IndexHandler {
 	}
 }
 
-func (h *IndexHandler) Index(ctx *gin.Context, model template.Model) (string, error) {
-	return h.PostModel.List(ctx, 0, model)
+func (h *IndexHandler) Index(_ctx context.Context, ctx *hzapp.RequestContext, model template.Model) (string, error) {
+	return h.PostModel.List(_ctx, 0, model)
 }
 
-func (h *IndexHandler) IndexPage(ctx *gin.Context, model template.Model) (string, error) {
-	page, err := util.ParamInt32(ctx, "page")
+func (h *IndexHandler) IndexPage(_ctx context.Context, ctx *hzapp.RequestContext, model template.Model) (string, error) {
+	page, err := util.ParamInt32(_ctx, ctx, "page")
 	if err != nil {
 		return "", err
 	}
-	return h.PostModel.List(ctx, int(page)-1, model)
+	return h.PostModel.List(_ctx, int(page)-1, model)
 }

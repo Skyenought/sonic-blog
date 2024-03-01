@@ -1,10 +1,12 @@
 package middleware
 
 import (
+	"context"
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	hzapp "github.com/cloudwego/hertz/pkg/app"
+	hzerrors "github.com/cloudwego/hertz/pkg/common/errors"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +28,7 @@ type GinLoggerConfig struct {
 }
 
 // LoggerWithConfig instance a Logger middleware with config.
-func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.HandlerFunc {
+func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) hzapp.HandlerFunc {
 	logger := g.logger.WithOptions(zap.WithCaller(false))
 	notLogged := conf.SkipPaths
 
@@ -40,17 +42,21 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 		}
 	}
 
-	return func(ctx *gin.Context) {
+	return func(_ctx context.Context, ctx *hzapp.RequestContext) {
 		// Start timer
 		start := time.Now()
-		path := ctx.Request.URL.Path
-		raw := ctx.Request.URL.RawQuery
+		path := string(ctx.URI().Path())
+		raw := string(ctx.URI().QueryString())
+		clientIP := ctx.ClientIP()
+		userAgent := string(ctx.UserAgent())
+		_ctx = context.WithValue(_ctx, "clientIP", clientIP)
+		_ctx = context.WithValue(_ctx, "userAgent", userAgent)
 
 		// Process request
-		ctx.Next()
+		ctx.Next(_ctx)
 
 		if len(ctx.Errors) > 0 {
-			logger.Error(ctx.Errors.ByType(gin.ErrorTypePrivate).String())
+			logger.Error(ctx.Errors.ByType(hzerrors.ErrorTypePrivate).String())
 		}
 		// Log only when path is not being skipped
 		if _, ok := skip[path]; !ok {
@@ -59,15 +65,15 @@ func (g *GinLoggerMiddleware) LoggerWithConfig(conf GinLoggerConfig) gin.Handler
 			}
 			path = strings.ReplaceAll(path, "\n", "")
 			path = strings.ReplaceAll(path, "\r", "")
-			clientIP := strings.ReplaceAll(ctx.ClientIP(), "\n", "")
+			clientIP := strings.ReplaceAll(clientIP, "\n", "")
 			clientIP = strings.ReplaceAll(clientIP, "\r", "")
 
-			logger.Info("[GIN]",
+			logger.Info("[HERTZ]",
 				zap.Time("beginTime", start),
-				zap.Int("status", ctx.Writer.Status()),
+				zap.Int("status", ctx.Response.StatusCode()),
 				zap.Duration("latency", time.Since(start)),
 				zap.String("clientIP", clientIP),
-				zap.String("method", ctx.Request.Method),
+				zap.String("method", string(ctx.Request.Method())),
 				zap.String("path", path))
 		}
 	}

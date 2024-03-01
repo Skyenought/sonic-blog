@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+	hzapp "github.com/cloudwego/hertz/pkg/app"
+	hzroute "github.com/cloudwego/hertz/pkg/route"
+	"github.com/hertz-contrib/cors"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -31,18 +32,18 @@ func (s *Server) RegisterRouters() {
 	}
 
 	{
-		router.GET("/ping", func(ctx *gin.Context) {
-			_, _ = ctx.Writer.Write([]byte("pong"))
+		router.GET("/ping", func(_ctx context.Context, ctx *hzapp.RequestContext) {
+			_, _ = ctx.Write([]byte("pong"))
 		})
 		{
 			staticRouter := router.Group("/")
-			staticRouter.StaticFS(s.Config.Sonic.AdminURLPath, gin.Dir(s.Config.Sonic.AdminResourcesDir, false))
-			staticRouter.StaticFS("/css", gin.Dir(filepath.Join(s.Config.Sonic.AdminResourcesDir, "css"), false))
-			staticRouter.StaticFS("/js", gin.Dir(filepath.Join(s.Config.Sonic.AdminResourcesDir, "js"), false))
-			staticRouter.StaticFS("/images", gin.Dir(filepath.Join(s.Config.Sonic.AdminResourcesDir, "images"), false))
+			staticRouter.StaticFS(s.Config.Sonic.AdminURLPath, &hzapp.FS{Root: s.Config.Sonic.AdminResourcesDir, GenerateIndexPages: false, PathRewrite: hzapp.NewPathSlashesStripper(100), IndexNames: []string{"index.html"}})
+			staticRouter.StaticFS("/css", &hzapp.FS{Root: filepath.Join(s.Config.Sonic.AdminResourcesDir, "css"), GenerateIndexPages: false, PathRewrite: hzapp.NewPathSlashesStripper(100), IndexNames: []string{"index.html"}})
+			staticRouter.StaticFS("/js", &hzapp.FS{Root: filepath.Join(s.Config.Sonic.AdminResourcesDir, "js"), GenerateIndexPages: false, PathRewrite: hzapp.NewPathSlashesStripper(100), IndexNames: []string{"index.html"}})
+			staticRouter.StaticFS("/images", &hzapp.FS{Root: filepath.Join(s.Config.Sonic.AdminResourcesDir, "images"), GenerateIndexPages: false, PathRewrite: hzapp.NewPathSlashesStripper(100), IndexNames: []string{"index.html"}})
 			staticRouter.Use(middleware.NewCacheControlMiddleware(middleware.WithMaxAge(time.Hour*24*7)).CacheControl()).
-				StaticFS(consts.SonicUploadDir, gin.Dir(s.Config.Sonic.UploadDir, false))
-			staticRouter.StaticFS("/themes/", gin.Dir(s.Config.Sonic.ThemeDir, false))
+				StaticFS(consts.SonicUploadDir, &hzapp.FS{Root: s.Config.Sonic.UploadDir, GenerateIndexPages: false, PathRewrite: hzapp.NewPathSlashesStripper(100), IndexNames: []string{"index.html"}})
+			staticRouter.StaticFS("/themes/", &hzapp.FS{Root: s.Config.Sonic.ThemeDir, GenerateIndexPages: false, PathRewrite: hzapp.NewPathSlashesStripper(100), IndexNames: []string{"index.html"}})
 		}
 		{
 			adminAPIRouter := router.Group("/api/admin")
@@ -352,7 +353,7 @@ func (s *Server) RegisterRouters() {
 	}
 }
 
-func (s *Server) registerDynamicRouters(contentRouter *gin.RouterGroup) error {
+func (s *Server) registerDynamicRouters(contentRouter *hzroute.RouterGroup) error {
 	ctx := context.Background()
 	ctx = dal.SetCtxQuery(ctx, dal.GetQueryByCtx(ctx).ReplaceDB(dal.GetDB().Session(
 		&gorm.Session{Logger: dal.DB.Logger.LogMode(logger.Warn)},

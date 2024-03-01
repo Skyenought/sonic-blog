@@ -1,9 +1,10 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	hzapp "github.com/cloudwego/hertz/pkg/app"
 
 	"github.com/go-sonic/sonic/cache"
 	"github.com/go-sonic/sonic/consts"
@@ -30,15 +31,15 @@ func NewAuthMiddleware(optionService service.OptionService, oneTimeTokenService 
 	return authMiddleware
 }
 
-func (a *AuthMiddleware) GetWrapHandler() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		isInstalled, err := a.OptionService.GetOrByDefaultWithErr(ctx, property.IsInstalled, false)
+func (a *AuthMiddleware) GetWrapHandler() hzapp.HandlerFunc {
+	return func(_ctx context.Context, ctx *hzapp.RequestContext) {
+		isInstalled, err := a.OptionService.GetOrByDefaultWithErr(_ctx, property.IsInstalled, false)
 		if err != nil {
-			abortWithStatusJSON(ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+			abortWithStatusJSON(_ctx, ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 			return
 		}
 		if !isInstalled.(bool) {
-			abortWithStatusJSON(ctx, http.StatusBadRequest, "Blog is not initialized")
+			abortWithStatusJSON(_ctx, ctx, http.StatusBadRequest, "Blog is not initialized")
 			return
 		}
 
@@ -46,45 +47,45 @@ func (a *AuthMiddleware) GetWrapHandler() gin.HandlerFunc {
 		if ok {
 			allowedURL, ok := a.OneTimeTokenService.Get(oneTimeToken)
 			if !ok {
-				abortWithStatusJSON(ctx, http.StatusBadRequest, "OneTimeToken is not exist or expired")
+				abortWithStatusJSON(_ctx, ctx, http.StatusBadRequest, "OneTimeToken is not exist or expired")
 				return
 			}
-			currentURL := ctx.Request.URL.Path
+			currentURL := string(ctx.URI().Path())
 			if currentURL != allowedURL {
-				abortWithStatusJSON(ctx, http.StatusBadRequest, "The one-time token does not correspond the request uri")
+				abortWithStatusJSON(_ctx, ctx, http.StatusBadRequest, "The one-time token does not correspond the request uri")
 				return
 			}
 			return
 		}
 
-		token := ctx.GetHeader(consts.AdminTokenHeaderName)
+		token := string(ctx.GetHeader(consts.AdminTokenHeaderName))
 		if token == "" {
-			abortWithStatusJSON(ctx, http.StatusUnauthorized, "未登录，请登录后访问")
+			abortWithStatusJSON(_ctx, ctx, http.StatusUnauthorized, "未登录，请登录后访问")
 			return
 		}
 		userID, ok := a.Cache.Get(cache.BuildTokenAccessKey(token))
 
 		if !ok || userID == nil {
-			abortWithStatusJSON(ctx, http.StatusUnauthorized, "Token 已过期或不存在")
+			abortWithStatusJSON(_ctx, ctx, http.StatusUnauthorized, "Token 已过期或不存在")
 			return
 		}
 
-		user, err := a.UserService.GetByID(ctx, userID.(int32))
+		user, err := a.UserService.GetByID(_ctx, userID.(int32))
 		if xerr.GetType(err) == xerr.NoRecord {
 			_ = ctx.Error(err)
-			abortWithStatusJSON(ctx, http.StatusUnauthorized, "用户不存在")
+			abortWithStatusJSON(_ctx, ctx, http.StatusUnauthorized, "用户不存在")
 			return
 		}
 		if err != nil {
 			_ = ctx.Error(err)
-			abortWithStatusJSON(ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+			abortWithStatusJSON(_ctx, ctx, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 			return
 		}
 		ctx.Set(consts.AuthorizedUser, user)
 	}
 }
 
-func abortWithStatusJSON(ctx *gin.Context, status int, message string) {
+func abortWithStatusJSON(_ctx context.Context, ctx *hzapp.RequestContext, status int, message string) {
 	ctx.AbortWithStatusJSON(status, &dto.BaseDTO{
 		Status:  status,
 		Message: message,

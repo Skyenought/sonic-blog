@@ -1,7 +1,9 @@
 package api
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+
+	hzapp "github.com/cloudwego/hertz/pkg/app"
 
 	"github.com/go-sonic/sonic/service"
 	"github.com/go-sonic/sonic/util"
@@ -17,10 +19,10 @@ func NewCommentHandler(baseCommentService service.BaseCommentService) *CommentHa
 	}
 }
 
-func (c *CommentHandler) Like(ctx *gin.Context) (interface{}, error) {
-	commentID, err := util.ParamInt32(ctx, "commentID")
+func (c *CommentHandler) Like(_ctx context.Context, ctx *hzapp.RequestContext) (interface{}, error) {
+	commentID, err := util.ParamInt32(_ctx, ctx, "commentID")
 	if err != nil {
 		return nil, err
 	}
-	return nil, c.BaseCommentService.IncreaseLike(ctx, commentID)
+	return nil, c.BaseCommentService.IncreaseLike(_ctx, commentID)
 }

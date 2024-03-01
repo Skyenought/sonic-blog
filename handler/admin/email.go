@@ -1,7 +1,9 @@
 package admin
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+
+	hzapp "github.com/cloudwego/hertz/pkg/app"
 
 	"github.com/go-sonic/sonic/model/param"
 	"github.com/go-sonic/sonic/service"
@@ -18,10 +20,10 @@ func NewEmailHandler(emailService service.EmailService) *EmailHandler {
 	}
 }
 
-func (e *EmailHandler) Test(ctx *gin.Context) (interface{}, error) {
+func (e *EmailHandler) Test(_ctx context.Context, ctx *hzapp.RequestContext) (interface{}, error) {
 	p := &param.TestEmail{}
-	if err := ctx.ShouldBindJSON(p); err != nil {
+	if err := ctx.BindAndValidate(p); err != nil {
 		return nil, xerr.WithStatus(err, xerr.StatusBadRequest).WithMsg("param error ")
 	}
-	return nil, e.EmailService.SendTextEmail(ctx, p.To, p.Subject, p.Content)
+	return nil, e.EmailService.SendTextEmail(_ctx, p.To, p.Subject, p.Content)
 }

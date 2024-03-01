@@ -1,7 +1,9 @@
 package content
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+
+	hzapp "github.com/cloudwego/hertz/pkg/app"
 
 	"github.com/go-sonic/sonic/cache"
 	"github.com/go-sonic/sonic/handler/content/model"
@@ -32,26 +34,26 @@ func NewSheetHandler(
 	}
 }
 
-func (s *SheetHandler) SheetBySlug(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (s *SheetHandler) SheetBySlug(_ctx context.Context, ctx *hzapp.RequestContext, model template.Model) (string, error) {
+	slug, err := util.ParamString(_ctx, ctx, "slug")
 	if err != nil {
 		return "", err
 	}
-	sheet, err := s.SheetService.GetBySlug(ctx, slug)
+	sheet, err := s.SheetService.GetBySlug(_ctx, slug)
 	if err != nil {
 		return "", err
 	}
-	token, _ := ctx.Cookie("authentication")
-	return s.SheetModel.Content(ctx, sheet, token, model)
+	token := string(ctx.Cookie("authentication"))
+	return s.SheetModel.Content(_ctx, sheet, token, model)
 }
 
-func (s *SheetHandler) AdminSheetBySlug(ctx *gin.Context, model template.Model) (string, error) {
-	slug, err := util.ParamString(ctx, "slug")
+func (s *SheetHandler) AdminSheetBySlug(_ctx context.Context, ctx *hzapp.RequestContext, model template.Model) (string, error) {
+	slug, err := util.ParamString(_ctx, ctx, "slug")
 	if err != nil {
 		return "", err
 	}
 
-	token, err := util.MustGetQueryString(ctx, "token")
+	token, err := util.MustGetQueryString(_ctx, ctx, "token")
 	if err != nil {
 		return "", err
 	}
@@ -63,10 +65,10 @@ func (s *SheetHandler) AdminSheetBySlug(ctx *gin.Context, model template.Model) 
 		return "", xerr.WithStatus(nil, xerr.StatusBadRequest).WithMsg("token已过期或者不存在")
 	}
 
-	sheet, err := s.SheetService.GetBySlug(ctx, slug)
+	sheet, err := s.SheetService.GetBySlug(_ctx, slug)
 	if err != nil {
 		return "", err
 	}
 
-	return s.SheetModel.AdminPreviewContent(ctx, sheet, model)
+	return s.SheetModel.AdminPreviewContent(_ctx, sheet, model)
 }

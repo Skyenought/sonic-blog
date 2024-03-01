@@ -1,7 +1,9 @@
 package content
 
 import (
-	"github.com/gin-gonic/gin"
+	"context"
+
+	hzapp "github.com/cloudwego/hertz/pkg/app"
 
 	"github.com/go-sonic/sonic/handler/content/model"
 	"github.com/go-sonic/sonic/template"
@@ -19,6 +21,6 @@ func NewLinkHandler(
 	}
 }
 
-func (t *LinkHandler) Link(ctx *gin.Context, model template.Model) (string, error) {
-	return t.LinkModel.Links(ctx, model)
+func (t *LinkHandler) Link(_ctx context.Context, ctx *hzapp.RequestContext, model template.Model) (string, error) {
+	return t.LinkModel.Links(_ctx, model)
 }
